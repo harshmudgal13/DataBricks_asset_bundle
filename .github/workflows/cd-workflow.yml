@@ -1,0 +1,116 @@
+name: CD Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  cd-deploy-dev:
+    name: Deploy to DEV
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          databricks version
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel
+          pip install databricks-connect==15.4.0
+          pip install databricks-sdk==0.49.0
+
+      - name: Configure Databricks Unified Auth
+        run: |
+          echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_TEST_HOST }}" >> $GITHUB_ENV
+          echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TEST_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Verify Databricks Authentication
+        run: |
+          python - <<EOF
+          from databricks.sdk import WorkspaceClient
+          w = WorkspaceClient()
+          print("Authenticated as:", w.current_user.me().user_name)
+          EOF
+
+      - name: Create Catalog and Schemas
+        run: |
+          python ./scripts/prerequisites/create_catalog.py
+
+      - name: Upload Source Data
+        run: |
+          chmod +x ./scripts/prerequisites/upload_source_data.sh
+          ./scripts/prerequisites/upload_source_data.sh dev
+
+      - name: Deploy to DEV
+        run: |
+          databricks bundle deploy \
+            --target dev \
+            --var="catalog=citibike_dev"
+
+  cd-deploy-prod:
+    name: Deploy to PROD
+    needs: cd-deploy-dev
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          databricks version
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel
+          pip install databricks-connect==15.4.0
+          pip install databricks-sdk==0.49.0
+
+      - name: Configure Databricks Unified Auth
+        run: |
+          echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_PROD_HOST }}" >> $GITHUB_ENV
+          echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}" >> $GITHUB_ENV
+
+      - name: Verify Databricks Authentication
+        run: |
+          python - <<EOF
+          from databricks.sdk import WorkspaceClient
+          w = WorkspaceClient()
+          print("Authenticated as:", w.current_user.me().user_name)
+          EOF
+
+      - name: Create Catalog and Schemas
+        run: |
+          python ./scripts/prerequisites/create_catalog.py
+
+      - name: Upload Source Data
+        run: |
+          chmod +x ./scripts/prerequisites/upload_source_data.sh
+          ./scripts/prerequisites/upload_source_data.sh prod
+
+      - name: Deploy to PROD
+        run: |
+          databricks bundle deploy \
+            --target prod \
+            --var="catalog=citibike_prod"

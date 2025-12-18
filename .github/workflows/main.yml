@@ -1,0 +1,27 @@
+name: Databricks Profile Setup
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'development'
+
+jobs:
+  demo-job:
+    name: Demo Job
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Configure Databricks Profile
+        run: |
+          # write out the profile (here called "DEVELOPMENT")
+          cat <<EOF > ~/.databrickscfg
+          [DEV]
+          host = ${{ secrets.DATABRICKS_TEST_HOST }}
+          token = ${{ secrets.DATABRICKS_TEST_TOKEN }}
+          EOF
+
+      - name: List Directory
+        run : ls -al ~/.
+      - name: Check the content inside file
+        run: cat ~/.databrickscfg
