@@ -35,8 +35,8 @@ targets:
         default: false
     presets:
       name_prefix: '[development] '
-    workspace:https://dbc-1aeebfe6-c28d.cloud.databricks.com
-      host:  # replace with your Workspace URL
+    workspace: 
+      host: https://dbc-1aeebfe6-c28d.cloud.databricks.com # replace with your Workspace URL
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     permissions:
       - user_name: lakshaykumarpandit@gmail.com # update with your service principal name
